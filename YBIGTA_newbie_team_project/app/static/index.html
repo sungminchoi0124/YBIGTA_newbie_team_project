@@ -200,6 +200,7 @@
         <div class="section" id="update-password-section">
             <h2>Update Password</h2>
             <form id="update-password-form">
+                <input type="email" id="update-email" placeholder="Email to update" aria-label="Update email" required>
                 <input type="password" id="update-password" placeholder="New Password" aria-label="New password" required>
                 <button type="button" onclick="updatePassword()">Update Password</button>
             </form>
@@ -207,6 +208,7 @@
 
         <div class="section" id="delete-section">
             <h2>Delete Account</h2>
+            <input type="email" id="delete-email" placeholder="Email to delete" aria-label="Delete email" required>
             <button type="button" onclick="deleteUser()">Delete Account</button>
         </div>
     </div>
@@ -237,7 +239,7 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('logged-in-screen').style.display = 'block';
             })
-            .catch(error => alert(`Login failed: ${error.message}`));
+            .catch(error => alert(error.message));
         }
 
         function registerUser() {
@@ -258,33 +260,51 @@
                 }
                 return response.json();
             })
-            .then(() => alert(`Registration successful! Welcome, ${username}.`)) // 성공 메시지에 사용자 이름 표시
-            .catch(error => alert(`Registration failed: ${error.message}`));
+            .then(() => alert(`Registration successful! Welcome, ${username}.`))
+            .catch(error => alert(error.message));
         }
 
         function updatePassword() {
+            
+            const updateEmail = document.getElementById('update-email').value;
             const newPassword = document.getElementById('update-password').value;
+
+            
+            if (!updateEmail || !newPassword) {
+                alert("이메일과 새 비밀번호를 모두 입력해주세요.");
+                return;
+            }
 
             fetch('/api/user/update-password', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: userEmail, new_password: newPassword })
+                
+                body: JSON.stringify({ email: updateEmail, new_password: newPassword })
             })
             .then(response => {
                 if (!response.ok) {
+                    
                     return response.json().then(error => { throw new Error(error.detail); });
                 }
                 return response.json();
             })
-            .then(() => alert(`Password successfully updated!`)) // 성공 메시지
-            .catch(error => alert(`Password update failed: ${error.message}`));
+            .then(() => {
+                alert(`Password successfully updated!`);
+                
+                document.getElementById('update-email').value = '';
+                document.getElementById('update-password').value = '';
+            })
+            .catch(error => alert(error.message));
         }
 
         function deleteUser() {
-            if (!userEmail) {
-                alert("No user is logged in.");
+            
+            const deleteEmail = document.getElementById('delete-email').value;
+
+            if (!deleteEmail) {
+                alert("삭제할 이메일을 입력해주세요.");
                 return;
             }
 
@@ -293,7 +313,8 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: userEmail }) // 저장된 이메일 전송
+                
+                body: JSON.stringify({ email: deleteEmail }) 
             })
             .then(response => {
                 if (!response.ok) {
@@ -303,11 +324,13 @@
             })
             .then(() => {
                 alert(`User deleted successfully!`);
+                
                 document.getElementById('logged-in-screen').style.display = 'none';
                 document.getElementById('login-screen').style.display = 'block';
-                userEmail = null; // 이메일 초기화
+                document.getElementById('delete-email').value = ''; 
+                userEmail = null; 
             })
-            .catch(error => alert(`Account deletion failed: ${error.message}`));
+            .catch(error => alert(error.message));
         }
     </script>
 </body>
