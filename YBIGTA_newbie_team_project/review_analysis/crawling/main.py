@@ -1,11 +1,19 @@
 from argparse import ArgumentParser
 from typing import Dict, Type
+
+import sys
+import os
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+
 from review_analysis.crawling.base_crawler import BaseCrawler
 from review_analysis.crawling.megabox_crawler import MegaboxCrawler
+from review_analysis.crawling.IMDb_crawler import IMDbCrawler
 
 # 모든 크롤링 클래스를 예시 형식으로 적어주세요. 
 CRAWLER_CLASSES: Dict[str, Type[BaseCrawler]] = {
     "megabox": MegaboxCrawler,
+    "IMDb": IMDbCrawler
 }
 
 def create_parser() -> ArgumentParser:
