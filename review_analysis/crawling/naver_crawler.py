@@ -81,7 +81,7 @@ class NaverCrawler(BaseCrawler):
         self.min_reviews = min_reviews
         self.max_pages = max_pages
         self.reviews: List[Dict[str, str]] = []
-        self._seen_rating_ids = set()
+        self._seen_rating_ids: set[str] = set()
         self.logger = setup_logger(log_file="naver_crawler.log")
         self.session = requests.Session()
         self.session.headers.update(
@@ -218,6 +218,10 @@ class NaverCrawler(BaseCrawler):
             항목을 건너뛴다. "_rating_id"는 중복 제거용 내부 키로, 호출부에서
             pop해서 사용한 뒤 최종 결과에는 포함하지 않는다.
         """
+        def get_str(attr_name: str) -> str:
+            val = item.get(attr_name)
+            return "".join(val) if isinstance(val, list) else str(val or "")
+
         try:
             # 별점: div.area_text_box 안에서 '별점(10점 만점 중)' 스크린리더용
             # 텍스트(span.blind)를 제거하고 남는 숫자만 사용한다.
@@ -231,7 +235,7 @@ class NaverCrawler(BaseCrawler):
 
             # 내용: data-report-title 속성을 우선 사용(가장 깔끔한 원문),
             # 없으면 span.desc._text에서 추출.
-            content = (item.get("data-report-title") or "").strip()
+            content = get_str("data-report-title").strip()
             if not content:
                 content_tag = item.select_one("span.desc._text")
                 content = content_tag.get_text(strip=True) if content_tag else ""
@@ -239,7 +243,7 @@ class NaverCrawler(BaseCrawler):
             # 날짜: data-report-time 속성("20260527 19:07")을
             # "2026.05.27 19:07" 형태로 변환. 실패 시 화면에 보이는
             # dd.this_text_normal 텍스트로 대체.
-            date = self._format_date((item.get("data-report-time") or "").strip())
+            date = self._format_date(get_str("data-report-time").strip())
             if not date:
                 date_tag = item.select_one("dl.cm_upload_info dd.this_text_normal")
                 date = date_tag.get_text(strip=True) if date_tag else ""
@@ -251,11 +255,11 @@ class NaverCrawler(BaseCrawler):
                 "score": score,
                 "date": date,
                 "content": content,
-                "writer_id": item.get("data-report-writer-id", ""),
+                "writer_id": get_str("data-report-writer-id"),
                 "like_count": self._extract_count(item, "button._btn_upvote span._count_num"),
                 "dislike_count": self._extract_count(item, "button._btn_downvote span._count_num"),
                 "source": source,
-                "_rating_id": item.get("data-rating-id", ""),
+                "_rating_id": get_str("data-rating-id"),
             }
         except Exception as exc:  # noqa: BLE001
             self.logger.warning(f"리뷰 파싱 중 오류로 해당 항목을 건너뜁니다: {exc}")
