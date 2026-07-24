@@ -6,8 +6,8 @@
 * **실행 방법:**
   * review_analysis 터미널에서 다음 명령어를 실행
   * python crawling/main.py -o ../database --all
-  * 만약 경로 문제 때문에 모듈을 찾을 수 없다고 뜨면, 대신 python -m review_analysis.crawling.main -o ./database --all 실행
-  * 중요) 웹페이지가 켜지면, 30초 이내에 로그인해야 리뷰를 볼 수 있음. 실패시 로그인 할 준비하고 다시 명령어 실행
+  * 만약 경로 문제 때문에 모듈을 찾을 수 없다고 뜨면, 대신 최상위 폴더에서 python -m review_analysis.crawling.main -o ./database --all 실행
+  * (중요) 웹페이지가 켜지면, 30초 이내에 로그인해야 리뷰를 볼 수 있음. 실패시 로그인 할 준비하고 다시 명령어 실행
  
 
 ### 영화 <백룸> 리뷰 데이터 (Naver)
@@ -17,7 +17,9 @@
   * **데이터 형식:** 별점(score, 10점 만점), 작성일(date, YYYY.MM.DD HH:MM), 리뷰 내용(content), 작성자 ID(writer_id), 공감/비공감 수(like_count/dislike_count), 출처(source, 관람객/네티즌)가 포함된 CSV 형태
   * **수집 개수:** 507개 (관람객 리뷰 + 네티즌 리뷰 합산, 중복 제거)
  
-
+### 데이터 전처리(preprocessing) 실행 방법
+ * 과제 최상위 폴더에서 다음 명령어 실행: python -m review_analysis.preprocessing.main --all
+ * db에 저장 확인
 
 
 
