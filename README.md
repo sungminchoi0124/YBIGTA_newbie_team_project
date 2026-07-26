@@ -3,11 +3,6 @@
   * **크롤링 사이트 링크:** [IMDb The Backrooms User Reviews](https://www.imdb.com/title/tt26657236/reviews/?sort=submissionDate&dir=desc)
   * **데이터 형식:** 별점(10점 만점), 날짜(MMM DD, YYYY), 내용(텍스트, 최대 300자)이 포함된 CSV 형태
   * **수집 개수:** 약 500개 이상
-* **실행 방법:**
-  * review_analysis 터미널에서 다음 명령어를 실행
-  * python crawling/main.py -o ../database --all
-  * 만약 경로 문제 때문에 모듈을 찾을 수 없다고 뜨면, 대신 최상위 폴더에서 python -m review_analysis.crawling.main -o ./database --all 실행
-  * (중요) 웹페이지가 켜지면, 30초 이내에 로그인해야 리뷰를 볼 수 있음. 실패시 로그인 할 준비하고 다시 명령어 실행
  
 ### 영화 <백룸> 리뷰 데이터 (Naver)
 * **데이터 소개:**
@@ -24,10 +19,18 @@
   * **수집 개수:** 508개
 
 
+### 크롤링 실행 방법
+  * review_analysis 터미널에서 다음 명령어를 실행
+  * python crawling/main.py -o ../database --all
+  * 만약 경로 문제 때문에 모듈을 찾을 수 없다고 뜨면, 대신 최상위 폴더에서 python -m review_analysis.crawling.main -o ./database --all 실행
+  * (중요) IMDb 웹페이지가 켜지면 30초 이내에 로그인해야 리뷰를 볼 수 있음. 실패시, 로그인 할 준비가 되면 다시 명령어 실행 부탁드립니다.
+
 
 ### 데이터 전처리(preprocessing) 실행 방법
  * 과제 최상위 폴더에서 다음 명령어 실행: python -m review_analysis.preprocessing.main --all
  * db에 저장 확인
+
+
 
 ### 전처리/FE (Feature Engineering) 결과
 
@@ -181,13 +184,23 @@
 - 특징 : 개봉 직후 리뷰가 집중되었으며 이후 리뷰 수가 점차 감소하는 경향을 보임.
 
 
+### github 협업 과제 캡처 이미지
+
+1. **Branch Protection 설정 화면**
+![브랜치 보호 설정](github/branch_protection.png)
+
+2. **Push 거부 화면**
+![푸시 거부 (바로 푸시 못하게 설정하고 pull까지 했지만 명세서대로 나오지는 않음)](github/push_rejected.png)
+
+3. **PR 리뷰 및 머지 화면**
+![리뷰 및 머지](github/review_and_merged.png)
 
 
-
-### 웹 과제 실행 방법
+### WEB 과제 실행 방법
 1. pip install -r requirements.txt
 2. uvicorn app.main:app --reload
 3. http://localhost:8000/static/index.html 접속 후 UI 확인
+
 
 ### 팀 소개
 * 7조
