@@ -9,14 +9,12 @@
   * 만약 경로 문제 때문에 모듈을 찾을 수 없다고 뜨면, 대신 최상위 폴더에서 python -m review_analysis.crawling.main -o ./database --all 실행
   * (중요) 웹페이지가 켜지면, 30초 이내에 로그인해야 리뷰를 볼 수 있음. 실패시 로그인 할 준비하고 다시 명령어 실행
  
-
 ### 영화 <백룸> 리뷰 데이터 (Naver)
 * **데이터 소개:**
   * **크롤링 사이트 링크:** [네이버 - 백룸 평점](https://search.naver.com/search.naver?where=nexearch&query=%EB%B0%B1%EB%A3%B8+%ED%8F%89%EC%A0%90)
   * **수집 방식:** 네이버 검색결과 관람평 위젯이 내부적으로 호출하는 JSON API(`nqapirender.nhn`, fileKey=movieKBPointAPI)를 직접 호출. 관람객(티켓 인증) 리뷰와 네티즌(비인증) 리뷰가 서로 다른 API 파라미터로 제공되어, 두 풀을 모두 수집한 뒤 `data-rating-id` 기준 중복 제거 후 합침
   * **데이터 형식:** 별점(score, 10점 만점), 작성일(date, YYYY.MM.DD HH:MM), 리뷰 내용(content), 작성자 ID(writer_id), 공감/비공감 수(like_count/dislike_count), 출처(source, 관람객/네티즌)가 포함된 CSV 형태
   * **수집 개수:** 507개 (관람객 리뷰 + 네티즌 리뷰 합산, 중복 제거)
-
 
 ### 영화 <백룸> 리뷰 데이터 (Megabox)
 * **데이터 소개:**
@@ -25,33 +23,53 @@
   * **데이터 형식:** 영화명(movie), 사이트명(site), 별점(rating, 10점 만점), 리뷰 내용(review), 작성일(date, YYYY-MM-DD)이 포함된 CSV 형태
   * **수집 개수:** 508개
 
- 
+
+
 ### 데이터 전처리(preprocessing) 실행 방법
  * 과제 최상위 폴더에서 다음 명령어 실행: python -m review_analysis.preprocessing.main --all
  * db에 저장 확인
 
-### 전처리 / Feature Engineering
+### 전처리/FE (Feature Engineering) 결과
 
-`review_analysis/preprocessing/site_processors.py`의 `CommonProcessor`를 기반으로, 세 사이트 모두 동일한 파이프라인(`preprocess` → `feature_engineering` → `save_to_database`)을 거치도록 구현하였다. 사이트별 원본 컬럼명은 `_standardize_columns`에서 `['별점', '날짜', '내용']`으로 통일한 뒤 공통 로직을 적용한다.
+크롤링된 3개 사이트(`IMDb`, `megabox`, `naver`)의 분석에 적합한 형태로 가공하기 위해 공통 전처리 (`CommonProcessor`)을 구축하여 적용하였다.
 
-#### 1. 결측치 처리
-- 별점 또는 내용이 null인 리뷰 제거 (`dropna`)
-- "내용 없음"과 같이 실질적으로 비어있는 텍스트 제거
+### 1) 컬럼명 및 규격 통일
+* 각 사이트별로 상이했던 컬럼 이름 및 데이터 구조를 동일한 기준(`['별점', '날짜', '내용']`)으로 통일했다.
+  * **IMDb:** `7/10` 형태의 문자열 별점에서 숫자를 추출하여 10점 만점 수치형 데이터로 정제
+  * **Megabox:** `['rating', 'date', 'review']` $\rightarrow$ `['별점', '날짜', '내용']`으로 매핑
+  * **Naver:** `['score', 'date', 'content']` $\rightarrow$ `['별점', '날짜', '내용']`으로 매핑, 불필요한 열(`writer_id`, `like_count` 등) 제거
 
-#### 2. 이상치 처리
-- 별점을 숫자형으로 변환 후, 변환 불가능하거나(`coerce` → NaN) 0~10 범위를 벗어난 값 제거
-- `feature_engineering` 단계에서 날짜 파싱이 불가능한(`NaT`) 행도 함께 제거 → IMDb, Megabox는 EDA에서 확인한 대로 원본 자체에 날짜 결측치가 많아(각각 325개, 456개) 최종 데이터 수가 크게 줄었다 (IMDb 514→183개, Megabox 508→51개). Naver는 날짜 결측치가 없어 507개가 그대로 유지되었다.
+---
 
-#### 3. 텍스트 데이터 전처리
-- 정규식(`[^a-zA-Z가-힣\s]`)으로 특수문자·숫자·이모지 등을 제거하고 소문자화
-- 정제 후 길이가 2자 미만인, 의미 없는 리뷰 제거
+### 2) 결측치(Missing Values) 처리
+* **리뷰 내용/별점 결측치 제거:** `별점` 또는 `내용`에 `NaN`(null) 값이 존재하는 행을 전면 제거했다.
+* **의미 없는 텍스트 제거:** 리뷰 내용이 `'내용 없음'`으로 기록된 유령 데이터를 제거했다.
 
-#### 4. 파생 변수 생성
-- `요일` : 작성일(`날짜`)에서 요일(Monday~Sunday) 추출
-- `리뷰길이` : 원본 리뷰 내용의 문자 길이
+---
 
-#### 5. 텍스트 벡터화
-- `TfidfVectorizer(max_features=30)`로 정제된 텍스트를 TF-IDF 벡터화하여 사이트별 상위 30개 키워드에 대한 `tfidf_{단어}` 컬럼을 생성, 원본 데이터와 병합해 저장
+### 3) 이상치(Outliers) 처리
+* **별점 범주 이상치:** `pd.to_numeric`을 이용해 숫자형 변환 후, 별점 범주인 `0점 이상 10점 이하`를 벗어나는 데이터 및 변환 불가능한 찌꺼기 데이터를 제거했다.
+* **비정상적 리뷰 길이 이상치:** 특수문자 정제 후 텍스트 길이가 `2자 미만`인 이상치 리뷰를 제거했다.
+
+---
+
+### 4) 텍스트 데이터 전처리 (Text Preprocessing)
+* **정규표현식(Regex) 기반 특수문자 제거:** 한글, 영문, 공백을 제외한 모든 특수문자, 숫자, 이모지(`[^a-zA-Z가-힣\s]`)를 제거했다.
+* **대소문자 통합 및 공백 정제:** 영어 텍스트는 모두 소문자로 통일하고 양끝 공백(`strip()`)을 제거했다.
+---
+
+### 5) 파생 변수(Feature Engineering) 생성
+* **`요일`:** `pd.to_datetime`으로 날짜 데이터를 변환한 뒤, `.dt.day_name()`을 추출하여 요일별 리뷰 작성 패턴을 분석할 수 있도록 했다.
+* **`리뷰길이`:** 정제 전 원본 리뷰의 전체 글자 수를 측정하여 텍스트 길이 분포를 파악할 수 있는 파생 변수를 추가
+
+---
+
+### 6) 텍스트 벡터화 (Text Vectorization)
+* **TF-IDF (Term Frequency-Inverse Document Frequency) 적용:** 
+  * `scikit-learn`의 `TfidfVectorizer`를 활용하여 각 사이트별 리뷰에서 가장 빈도와 중요도가 높은 상위 30개 핵심 키워드(`max_features=30`)를 추출했다.
+  * 추출된 TF-IDF 수치 행렬을 데이터프레임으로 변환하여 `tfidf_단어` 형태의 컬럼으로 원본 데이터에 병합시킴
+
+
 
 ### EDA
 
