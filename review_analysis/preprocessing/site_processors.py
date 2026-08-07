@@ -1,14 +1,31 @@
+import os
 import pandas as pd
 import re
-import os
+from typing import Union
+
 from sklearn.feature_extraction.text import TfidfVectorizer
+
 from review_analysis.preprocessing.base_processor import BaseDataProcessor
 
 class CommonProcessor(BaseDataProcessor):
-    def __init__(self, input_path: str, output_dir: str, site_name: str):
-        super().__init__(input_path, output_dir)
+    def __init__(
+        self,
+        input_data: Union[str, pd.DataFrame],
+        output_dir: str | None,
+        site_name: str,
+    ):
+        super().__init__(
+            input_data if isinstance(input_data, str) else "",
+            output_dir or "",
+        )
+
         self.site_name = site_name
-        self.df = pd.read_csv(self.input_path)
+
+        if isinstance(input_data, pd.DataFrame):
+            self.df = input_data.copy()
+        else:
+            self.df = pd.read_csv(input_data)
+
         self._standardize_columns() # 자식 클래스에서 컬럼명을 통일하는 메서드
 
     def _standardize_columns(self):
@@ -66,25 +83,38 @@ class CommonProcessor(BaseDataProcessor):
 # ==========================================
 
 class IMDbProcessor(CommonProcessor):
-    def __init__(self, input_path: str, output_dir: str):
-        super().__init__(input_path, output_dir, 'IMDb')
+    def __init__(
+        self,
+        input_data: Union[str, pd.DataFrame],
+        output_dir: str | None = None,
+    ):
+        super().__init__(input_data, output_dir, "IMDb")
 
     def _standardize_columns(self):
-        self.df['별점'] = self.df['별점'].astype(str).str.split('/').str[0]
-        self.df = self.df[['별점', '날짜', '내용']]
+        self.df["별점"] = self.df["별점"].astype(str).str.split("/").str[0]
+        self.df = self.df[["별점", "날짜", "내용"]]
 
 class MegaboxProcessor(CommonProcessor):
-    def __init__(self, input_path: str, output_dir: str):
-        super().__init__(input_path, output_dir, 'megabox')
-        
+    def __init__(
+        self,
+        input_data: Union[str, pd.DataFrame],
+        output_dir: str | None = None,
+    ):
+        super().__init__(input_data, output_dir, "megabox")
+
     def _standardize_columns(self):
-        self.df = self.df[['rating', 'date', 'review']]
-        self.df.columns = ['별점', '날짜', '내용']
+        self.df = self.df[["rating", "date", "review"]]
+        self.df.columns = ["별점", "날짜", "내용"]
+
 
 class NaverProcessor(CommonProcessor):
-    def __init__(self, input_path: str, output_dir: str):
-        super().__init__(input_path, output_dir, 'naver')
-        
+    def __init__(
+        self,
+        input_data: Union[str, pd.DataFrame],
+        output_dir: str | None = None,
+    ):
+        super().__init__(input_data, output_dir, "naver")
+
     def _standardize_columns(self):
-        self.df = self.df[['score', 'date', 'content']]
-        self.df.columns = ['별점', '날짜', '내용']
+        self.df = self.df[["score", "date", "content"]]
+        self.df.columns = ["별점", "날짜", "내용"]
