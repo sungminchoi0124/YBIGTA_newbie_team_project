@@ -241,6 +241,12 @@ python review_analysis/eda.py
 2. uvicorn app.main:app --reload
 3. http://localhost:8000/static/index.html 접속 후 UI 확인
 
+## Docker
+
+### Docker Hub Repository
+
+https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
+
 
 ### 팀 소개
 * 7조
