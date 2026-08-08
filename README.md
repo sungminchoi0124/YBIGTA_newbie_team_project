@@ -257,3 +257,16 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 **최성민 (22, 응용통계학과)**
 **박소영 (응용통계학과)**
 **송지훈 (21, 컴퓨터과학과)**
+
+
+### AWS endpoint 및 성공 응답 캡처
+
+![로그인](aws/login.png)
+
+![가입](aws/register.png)
+
+![비밀번호 수정](aws/update_password.png)
+
+![유저 삭제](aws/delete.png)
+
+![전처리](aws/preprocess.png)
