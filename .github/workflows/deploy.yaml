@@ -40,16 +40,17 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            cat > ~/ybigta.env <<'ENVEOF'
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            MONGO_URL=${{ secrets.MONGO_URL }}
+            ENVEOF
+            sed -i '/^[[:space:]]*$/d' ~/ybigta.env
             docker pull ${{ env.IMAGE_NAME }}:latest
             docker stop ybigta-app || true
             docker rm ybigta-app || true
-            docker run -d \
-              --name ybigta-app \
-              -p 8000:8000 \
-              -e DB_USER=${{ secrets.DB_USER }} \
-              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e DB_HOST=${{ secrets.DB_HOST }} \
-              -e DB_PORT=${{ secrets.DB_PORT }} \
-              -e DB_NAME=${{ secrets.DB_NAME }} \
-              -e MONGO_URL=${{ secrets.MONGO_URL }} \
-              ${{ env.IMAGE_NAME }}:latest
+            docker run -d --name ybigta-app -p 8000:8000 --env-file ~/ybigta.env ${{ env.IMAGE_NAME }}:latest
+            rm -f ~/ybigta.env
