@@ -261,15 +261,20 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 
 ### AWS endpoint 및 성공 응답 캡처
 
-![로그인](aws/login.png)
+**로그인**
+(aws/login.png)
 
-![가입](aws/register.png)
+**사용자 등록**
+(aws/register.png)
 
-![비밀번호 수정](aws/update_password.png)
+**비밀번호 수정**
+(aws/update_password.png)
 
-![유저 삭제](aws/delete.png)
+**유저 삭제**
+(aws/delete.png)
 
-![전처리](aws/preprocess.png)
+**전처리**
+(aws/preprocess.png)
 
 
 ### Github Action을 통한 CI/CD 자동화
@@ -293,4 +298,5 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 | `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | RDS(MySQL) 접속 정보 |
 | `MONGO_URL` | MongoDB Atlas 접속 URL |
 
-![Github Action 실행 결과](aws/github_action.png)
+**Github Action 실행 결과**
+(aws/github_action.png)
