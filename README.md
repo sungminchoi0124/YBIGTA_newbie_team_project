@@ -261,20 +261,20 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 
 ### AWS endpoint 및 성공 응답 캡처
 
-**로그인**
-(aws/login.png)
+로그인 
+![로그인](aws/login.png)
 
-**사용자 등록**
-(aws/register.png)
+사용자 등록 
+![사용자 등록](aws/register.png)
 
-**비밀번호 수정**
-(aws/update_password.png)
+비밀번호 수정 
+![비밀번호 수정](aws/update_password.png)
 
-**유저 삭제**
-(aws/delete.png)
+유저 삭제
+![유저 삭제](aws/delete.png)
 
-**전처리**
-(aws/preprocess.png)
+전처리
+![전처리](aws/preprocess.png)
 
 
 ### Github Action을 통한 CI/CD 자동화
@@ -299,4 +299,13 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 | `MONGO_URL` | MongoDB Atlas 접속 URL |
 
 **Github Action 실행 결과**
-(aws/github_action.png)
+![githubaction](aws/github_action.png)
+
+
+### 멋져요 1. RDS 보안 설정
+
+외부에서 접속 불가능 설정
+![notpublic](aws/RDS_not_public.png)
+
+보안 그룹 설정(인바운드 규칙 추가 -> EC2의 보안 그룹은 가능하도록 설정)
+![security](aws/RDS_security.png)
