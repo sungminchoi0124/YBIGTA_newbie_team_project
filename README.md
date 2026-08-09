@@ -270,3 +270,27 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 ![유저 삭제](aws/delete.png)
 
 ![전처리](aws/preprocess.png)
+
+
+### Github Action을 통한 CI/CD 자동화
+
+`main` 브랜치에 변경사항이 push될 때마다 아래 두 개의 job이 순차적으로 실행됩니다.
+
+1. **Build and Push Docker Image**: 이미지를 빌드하여 Docker Hub에 push
+2. **Deploy to EC2**: EC2 인스턴스에 SSH로 접속하여 최신 이미지를 pull받아 컨테이너를 재생성
+
+워크플로우 파일: [`.github/workflows/deploy.yaml`](.github/workflows/deploy.yaml)
+
+아래 repository secret들을 등록해야 정상 동작합니다. (Settings > Secrets and variables > Actions)
+
+| Secret | 설명 |
+| --- | --- |
+| `DOCKERHUB_USERNAME` | Docker Hub 계정명 |
+| `DOCKERHUB_TOKEN` | Docker Hub Access Token |
+| `EC2_HOST` | EC2 인스턴스 퍼블릭 IP |
+| `EC2_USERNAME` | EC2 접속 계정 (ex. ubuntu) |
+| `EC2_SSH_KEY` | EC2 접속용 pem 키 내용 |
+| `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | RDS(MySQL) 접속 정보 |
+| `MONGO_URL` | MongoDB Atlas 접속 URL |
+
+![Github Action 실행 결과](aws/github_action.png)
