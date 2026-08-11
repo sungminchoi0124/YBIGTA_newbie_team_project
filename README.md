@@ -501,5 +501,10 @@ Vercel 프로젝트 생성 시 Root Directory를 `web`으로 지정하고, 위 �
 - 단순 조회: "현재 가장 최근 데이터는 뭐야?" → 실제 최신 BTC/ETH 데이터로 응답
 - 분석/집계: "BTC 평균, 최고, 최저 가격 알려줘" → `aggregate_data_tool` 결과로 응답
 
-- [ ] 단순 조회 질문 캡처: `aws/agent_query.png`
-- [ ] 분석/집계 질문 캡처: `aws/agent_analysis.png`
+**단순 조회**
+
+![단순 조회 질문](aws/agent_query.png)
+
+**분석/집계**
+
+![분석/집계 질문](aws/agent_analysis.png)
