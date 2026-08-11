@@ -20,8 +20,8 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function sendMessage(text?: string) {
-    const question = (text ?? input).trim();
+  async function sendMessage() {
+    const question = input.trim();
     if (!question || loading) return;
 
     const nextMessages: ChatMessage[] = [
@@ -78,21 +78,15 @@ export default function Home() {
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0f1420] p-4">
           {messages.length === 0 && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
               <p className="text-sm text-zinc-500">
                 BTC/ETH 가격 데이터에 대해 질문해보세요.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <ul className="flex flex-col gap-1 text-xs text-zinc-600">
                 {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => sendMessage(s)}
-                    className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-emerald-500 hover:text-emerald-400"
-                  >
-                    {s}
-                  </button>
+                  <li key={s}>예: &ldquo;{s}&rdquo;</li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
           {messages.map((m, i) => (
