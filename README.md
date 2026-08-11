@@ -443,3 +443,92 @@ EC2의 cron을 통해 수집 프로그램이 자동 실행되고 BTC와 ETH 데�
 자동 수집 및 갱신 결과는 아래 캡처를 통해 확인할 수 있습니다.
 
 ![데이터 자동 갱신](aws/data_update.png)
+
+
+## Data Analysis Agent (`web/`)
+
+사용자가 자연어로 데이터를 분석할 수 있는 Agent 사이트. Next.js(App Router)로 구현하고 Vercel에 배포합니다.
+
+### 흐름
+
+```
+사용자 질문 → Agent(Route Handler) → LLM(tool_use) → MCP Tool 선택 → MCP Server → DB → MCP Result → Agent → 최종 분석 결과
+```
+
+- Agent는 DB에 직접 접근하지 않고, **반드시 MCP Server를 통해서만** 데이터를 조회합니다.
+- LLM 호출, MCP 인증 토큰 사용, MCP Server 호출은 모두 `web/app/api/chat/route.ts` (Server Side)에서만 이루어집니다.
+- `web/app/page.tsx`(Client Component)는 입력창/채팅 UI/응답 표시만 담당하고, API Key나 MCP Token은 절대 갖고 있지 않습니다.
+
+### 구조
+
+```
+web/
+├── app/
+│   ├── page.tsx          # 채팅 UI (Client Component)
+│   └── api/chat/route.ts # LLM + MCP 호출 (Server Side)
+├── lib/
+│   └── mcpClient.ts       # MCP Server 연결/Tool 목록 조회/Tool 호출 (server-only)
+└── .env.example
+```
+
+### 환경변수 (`web/.env.example`)
+
+| 변수 | 설명 |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | LLM(Claude) API Key |
+| `MCP_SERVER_URL` | MCP Server의 SSE 엔드포인트 (예: `http://<host>/sse`) |
+| `MCP_AUTH_TOKEN` | MCP Server 인증용 토큰 (`Authorization: Bearer` 헤더) |
+
+`NEXT_PUBLIC_` 접두사를 붙이지 않았으므로 브라우저(Client Bundle)에는 노출되지 않습니다.
+
+### 로컬 실행
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### Vercel 배포
+
+Vercel 프로젝트 생성 시 Root Directory를 `web`으로 지정하고, 위 세 환경변수를 Vercel 프로젝트 설정(Settings → Environment Variables)에 등록합니다.
+
+배포 URL: https://web-sandy-seven-l9yv6daleg.vercel.app
+
+### 실행 확인
+
+실제 MCP Server(RDS 연동) 대상으로 동작 검증 완료. 두 질문 다 LLM이 원래 알 수 없는, 실제로 수집된 DB 데이터가 있어야만 답할 수 있는 질문입니다.
+
+**1) 단순 조회**
+
+```text
+사용자 질문: "현재 가장 최근 데이터는 뭐야?"
+    ↓
+MCP Tool 호출: get_latest_data_tool(limit=10)
+    ↓
+DB 조회: crypto_prices 테이블에서 collected_at DESC 기준 최신 행 조회
+    ↓
+Agent 답변: BTC/ETH 최근 캔들 데이터를 표로 정리하고,
+           직전 대비 등락(상승/하락)까지 요약해서 생성
+```
+
+**2) 분석/집계**
+
+```text
+사용자 질문: "BTC 평균, 최고, 최저 가격 알려줘"
+    ↓
+MCP Tool 호출: aggregate_data_tool(symbol="BTC")
+    ↓
+DB 조회: crypto_prices에서 symbol='BTC' 조건으로 AVG/MAX/MIN(close_price) 집계
+    ↓
+Agent 답변: 평균/최고/최저 가격과 수집 건수를 정리하고,
+           데이터 건수가 적을 때는 "참고용" 이라는 주의사항까지 스스로 덧붙여 생성
+```
+
+**단순 조회**
+
+![단순 조회 질문](aws/agent_query.png)
+
+**분석/집계**
+
+![분석/집계 질문](aws/agent_analysis.png)
