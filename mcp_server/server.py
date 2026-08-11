@@ -10,9 +10,20 @@ def verify_auth(ctx: Context):
     expected_token = os.getenv("MCP_AUTH_TOKEN")
     if not expected_token:
         return
-    
-    headers = ctx.request_context.meta.get("headers", {})
-    auth_header = headers.get("authorization", "")
+
+    headers = {}
+    if ctx and hasattr(ctx, "request_context") and ctx.request_context:
+        meta = getattr(ctx.request_context, "meta", None)
+        if meta:
+            if isinstance(meta, dict):
+                headers = meta.get("headers", {})
+            elif hasattr(meta, "headers"):
+                headers = getattr(meta, "headers", {}) or {}
+
+    auth_header = ""
+    if isinstance(headers, dict):
+        auth_header = headers.get("authorization") or headers.get("Authorization") or ""
+
     if not auth_header.startswith("Bearer ") or auth_header.split("Bearer ")[1] != expected_token:
         raise PermissionError("인증에 실패하였습니다. 올바른 Bearer Token이 필요합니다.")
 
