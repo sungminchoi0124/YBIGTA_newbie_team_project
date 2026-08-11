@@ -1,6 +1,6 @@
 import "server-only";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL;
 const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
@@ -11,12 +11,15 @@ export async function connectMcpClient(): Promise<Client> {
   }
 
   const client = new Client({ name: "ybigta-data-agent", version: "1.0.0" });
-  const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL), {
-    requestInit: {
-      headers: MCP_AUTH_TOKEN
-        ? { Authorization: `Bearer ${MCP_AUTH_TOKEN}` }
-        : undefined,
-    },
+  const transport = new SSEClientTransport(new URL(MCP_SERVER_URL), {
+    fetch: (input, init) =>
+      fetch(input, {
+        ...init,
+        headers: {
+          ...init?.headers,
+          ...(MCP_AUTH_TOKEN ? { Authorization: `Bearer ${MCP_AUTH_TOKEN}` } : {}),
+        },
+      }),
   });
 
   await client.connect(transport);
