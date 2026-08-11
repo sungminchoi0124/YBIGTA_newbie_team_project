@@ -493,7 +493,7 @@ npm run dev
 
 Vercel 프로젝트 생성 시 Root Directory를 `web`으로 지정하고, 위 세 환경변수를 Vercel 프로젝트 설정(Settings → Environment Variables)에 등록합니다.
 
-배포 URL: (배포 후 채워주세요)
+배포 URL: https://web-sandy-seven-l9yv6daleg.vercel.app
 
 ### 실행 확인
 
