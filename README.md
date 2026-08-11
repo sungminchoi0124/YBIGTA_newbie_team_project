@@ -255,7 +255,7 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 
 ### 자기소개
 **최성민 (22, 응용통계학과)**
-**박소영 (응용통계학과)**
+**박소영 (24, 응용통계학과)**
 **송지훈 (21, 컴퓨터과학과)**
 
 
@@ -309,3 +309,137 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 
 보안 그룹 설정(인바운드 규칙 추가 -> EC2의 보안 그룹은 가능하도록 설정)
 ![security](aws/RDS_security.png)
+
+## Data Pipeline
+
+### 1. 수집 데이터
+
+Data Analysis Agent가 분석할 데이터로 **Upbit의 암호화폐 가격 데이터**를 사용했습니다.
+
+수집 대상은 다음 두 종목입니다.
+
+| Symbol | Market |
+| --- | --- |
+| BTC | KRW-BTC |
+| ETH | KRW-ETH |
+
+Upbit API를 통해 BTC와 ETH의 **1시간 단위 OHLCV 데이터**를 수집합니다.
+
+수집되는 주요 데이터는 시가(`open_price`), 고가(`high_price`), 저가(`low_price`), 종가(`close_price`), 거래량(`volume`), 거래대금(`trade_value`)이며, 데이터의 기준 시각과 실제 수집 시각도 함께 저장합니다.
+
+
+### 2. 데이터 수집 및 전처리 구조
+
+데이터 수집 관련 코드는 `collector/` 디렉터리로 분리하여 구성했습니다.
+
+```text
+collector/
+├── api.py
+├── preprocessing.py
+├── database.py
+├── create_table.py
+└── main.py
+```
+
+각 파일의 역할은 다음과 같습니다.
+
+- `api.py`: Upbit API를 호출하여 BTC/ETH 시간봉 데이터 수집
+- `preprocessing.py`: API 응답에서 필요한 데이터를 추출하고 DB 저장 형식으로 변환
+- `database.py`: AWS RDS(MySQL) 연결 및 데이터 저장
+- `create_table.py`: `crypto_prices` 테이블 생성용 스크립트
+- `main.py`: 데이터 수집 → 전처리 → RDS 저장 과정 실행
+
+전체 데이터 흐름은 다음과 같습니다.
+
+```text
+Upbit API
+    ↓
+AWS EC2 Collector
+    ↓
+Data Preprocessing
+    ↓
+AWS RDS (MySQL)
+```
+
+
+### 3. DB Schema
+
+수집된 데이터는 AWS RDS(MySQL)의 `crypto_prices` 테이블에 저장됩니다.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | BIGINT | 데이터 식별자 (Primary Key) |
+| `symbol` | VARCHAR(10) | 암호화폐 심볼 (`BTC`, `ETH`) |
+| `market` | VARCHAR(20) | Upbit 마켓 코드 (`KRW-BTC`, `KRW-ETH`) |
+| `candle_time` | DATETIME | 해당 시간봉의 기준 시각 |
+| `open_price` | DECIMAL(20, 8) | 시가 |
+| `high_price` | DECIMAL(20, 8) | 고가 |
+| `low_price` | DECIMAL(20, 8) | 저가 |
+| `close_price` | DECIMAL(20, 8) | 종가 |
+| `volume` | DECIMAL(30, 12) | 거래량 |
+| `trade_value` | DECIMAL(30, 8) | 거래대금 |
+| `collected_at` | DATETIME | 데이터 수집 시각 |
+
+`market`과 `candle_time`의 조합에 UNIQUE 제약조건을 적용하여 동일한 종목의 동일 시간대 데이터가 중복 저장되지 않도록 구성했습니다.
+
+또한 `collected_at`을 저장하여 데이터가 실제로 주기적으로 수집되고 있는지 확인할 수 있도록 했습니다.
+
+
+### 4. AWS 기반 자동 수집
+
+데이터가 로컬 실행에 의존하지 않고 자동으로 갱신되도록 **AWS EC2에서 Collector를 실행하고 cron을 이용하여 주기적으로 수집**하도록 구성했습니다.
+
+cron은 **매시간 5분에** `collector/main.py`를 자동 실행하도록 설정했습니다.
+
+```cron
+5 * * * * cd /home/ec2-user/YBIGTA_newbie_team_project && /usr/bin/python3 collector/main.py >> /home/ec2-user/collector.log 2>&1
+```
+
+실행 결과는 `/home/ec2-user/collector.log`에 기록됩니다.
+
+전체 자동 수집 과정은 다음과 같습니다.
+
+```text
+Upbit API
+    ↓
+AWS EC2
+    ↓
+cron (매시간 5분)
+    ↓
+collector/main.py
+    ↓
+전처리
+    ↓
+AWS RDS (MySQL)
+```
+
+
+### 5. Credential 관리
+
+RDS 접속 정보는 코드에 직접 작성하지 않고 프로젝트 최상위 `.env` 파일의 환경변수로 관리했습니다.
+
+```text
+DB_HOST=
+DB_PORT=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+```
+
+데이터 수집에는 수집 전용 DB 계정인 `collector_user`를 사용합니다.
+
+실제 DB Credential이 포함된 `.env` 파일과 EC2 접속용 `.pem` 파일은 `.gitignore`를 통해 GitHub에 업로드되지 않도록 설정했습니다.
+
+
+### 6. 자동 갱신 확인
+
+EC2의 cron을 통해 수집 프로그램이 자동 실행되고 BTC와 ETH 데이터가 RDS에 저장되는 것을 로그를 통해 확인했습니다.
+
+```text
+[SUCCESS] KRW-BTC 2026-08-11T20:00:00 saved
+[SUCCESS] KRW-ETH 2026-08-11T20:00:00 saved
+```
+
+자동 수집 및 갱신 결과는 아래 캡처를 통해 확인할 수 있습니다.
+
+![데이터 자동 갱신](aws/data_update.png)
