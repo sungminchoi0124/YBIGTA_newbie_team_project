@@ -12,14 +12,11 @@ export async function connectMcpClient(): Promise<Client> {
 
   const client = new Client({ name: "ybigta-data-agent", version: "1.0.0" });
   const transport = new SSEClientTransport(new URL(MCP_SERVER_URL), {
-    fetch: (input, init) =>
-      fetch(input, {
-        ...init,
-        headers: {
-          ...init?.headers,
-          ...(MCP_AUTH_TOKEN ? { Authorization: `Bearer ${MCP_AUTH_TOKEN}` } : {}),
-        },
-      }),
+    fetch: (input, init) => {
+      const headers = new Headers(init?.headers);
+      if (MCP_AUTH_TOKEN) headers.set("Authorization", `Bearer ${MCP_AUTH_TOKEN}`);
+      return fetch(input, { ...init, headers });
+    },
   });
 
   await client.connect(transport);
