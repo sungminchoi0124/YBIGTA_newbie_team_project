@@ -1,5 +1,6 @@
 import os
 from fastmcp import FastMCP, Context
+from fastmcp.server.dependencies import get_http_headers
 from tools.latest import get_latest_data
 from tools.search import search_data
 from tools.aggregation import aggregate_data
@@ -11,19 +12,8 @@ def verify_auth(ctx: Context):
     if not expected_token:
         return
 
-    headers = {}
-    if ctx and hasattr(ctx, "request_context") and ctx.request_context:
-        meta = getattr(ctx.request_context, "meta", None)
-        if meta:
-            if isinstance(meta, dict):
-                headers = meta.get("headers", {})
-            elif hasattr(meta, "headers"):
-                headers = getattr(meta, "headers", {}) or {}
-
-    auth_header = ""
-    if isinstance(headers, dict):
-        auth_header = headers.get("authorization") or headers.get("Authorization") or ""
-
+    headers = get_http_headers(include={"authorization"})
+    auth_header = headers.get("authorization", "")
     if not auth_header.startswith("Bearer ") or auth_header.split("Bearer ")[1] != expected_token:
         raise PermissionError("인증에 실패하였습니다. 올바른 Bearer Token이 필요합니다.")
 
