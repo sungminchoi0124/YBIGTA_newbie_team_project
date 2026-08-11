@@ -1,10 +1,34 @@
-from services.price_service import PriceService
+import os
+import pymysql
 
-price_service = PriceService()
-
-def get_latest_data(limit: int = 10) -> list:
-    """
-    가장 최근에 수집된 암호화폐 가격 데이터 목록을 조회합니다.
-    :param limit: 조회할 데이터 개수 (기본값: 10, 최대: 50)
-    """
-    return price_service.get_latest_prices(limit=limit)
+def get_latest_data(limit: int = 10):
+    conn = pymysql.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        db=os.getenv("DB_NAME"),
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT 
+                    id, 
+                    symbol, 
+                    market, 
+                    candle_time, 
+                    open_price, 
+                    high_price, 
+                    low_price, 
+                    close_price AS price, 
+                    volume, 
+                    trade_value, 
+                    collected_at
+                FROM crypto_prices
+                ORDER BY collected_at DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (limit,))
+            return cursor.fetchall()
+    finally:
+        conn.close()

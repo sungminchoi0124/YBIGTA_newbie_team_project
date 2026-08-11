@@ -1,11 +1,35 @@
-from services.price_service import PriceService
+import os
+import pymysql
 
-price_service = PriceService()
-
-def search_data(symbol: str, limit: int = 20) -> list:
-    """
-    특정 암호화폐 종목(BTC, ETH 등)의 과거 가격 수집 내역을 검색합니다.
-    :param symbol: 검색할 암호화폐 심볼 (예: BTC, ETH)
-    :param limit: 조회할 데이터 개수 (기본값: 20, 최대: 100)
-    """
-    return price_service.search_prices_by_symbol(symbol=symbol, limit=limit)
+def search_data(symbol: str, limit: int = 20):
+    conn = pymysql.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        db=os.getenv("DB_NAME"),
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT 
+                    id, 
+                    symbol, 
+                    market, 
+                    candle_time, 
+                    open_price, 
+                    high_price, 
+                    low_price, 
+                    close_price AS price, 
+                    volume, 
+                    trade_value, 
+                    collected_at
+                FROM crypto_prices
+                WHERE symbol = %s
+                ORDER BY collected_at DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (symbol, limit))
+            return cursor.fetchall()
+    finally:
+        conn.close()

@@ -1,10 +1,29 @@
-from services.price_service import PriceService
+import os
+import pymysql
 
-price_service = PriceService()
-
-def aggregate_data(symbol: str) -> dict:
-    """
-    특정 암호화폐 종목의 평균, 최고, 최저 가격 및 총 수집 건수를 집계합니다.
-    :param symbol: 집계할 암호화폐 심볼 (예: BTC, ETH)
-    """
-    return price_service.get_aggregated_stats(symbol=symbol)
+def aggregate_data(symbol: str):
+    conn = pymysql.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        db=os.getenv("DB_NAME"),
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT 
+                    symbol,
+                    ROUND(AVG(close_price), 2) AS avg_price,
+                    MAX(close_price) AS max_price,
+                    MIN(close_price) AS min_price,
+                    COUNT(*) AS total_records
+                FROM crypto_prices
+                WHERE symbol = %s
+                GROUP BY symbol
+            """
+            cursor.execute(query, (symbol,))
+            result = cursor.fetchone()
+            return result if result else {}
+    finally:
+        conn.close()
