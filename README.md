@@ -497,9 +497,33 @@ Vercel 프로젝트 생성 시 Root Directory를 `web`으로 지정하고, 위 �
 
 ### 실행 확인
 
-실제 MCP Server(RDS 연동) 대상으로 동작 검증 완료:
-- 단순 조회: "현재 가장 최근 데이터는 뭐야?" → 실제 최신 BTC/ETH 데이터로 응답
-- 분석/집계: "BTC 평균, 최고, 최저 가격 알려줘" → `aggregate_data_tool` 결과로 응답
+실제 MCP Server(RDS 연동) 대상으로 동작 검증 완료. 두 질문 다 LLM이 원래 알 수 없는, 실제로 수집된 DB 데이터가 있어야만 답할 수 있는 질문입니다.
+
+**1) 단순 조회**
+
+```text
+사용자 질문: "현재 가장 최근 데이터는 뭐야?"
+    ↓
+MCP Tool 호출: get_latest_data_tool(limit=10)
+    ↓
+DB 조회: crypto_prices 테이블에서 collected_at DESC 기준 최신 행 조회
+    ↓
+Agent 답변: BTC/ETH 최근 캔들 데이터를 표로 정리하고,
+           직전 대비 등락(상승/하락)까지 요약해서 생성
+```
+
+**2) 분석/집계**
+
+```text
+사용자 질문: "BTC 평균, 최고, 최저 가격 알려줘"
+    ↓
+MCP Tool 호출: aggregate_data_tool(symbol="BTC")
+    ↓
+DB 조회: crypto_prices에서 symbol='BTC' 조건으로 AVG/MAX/MIN(close_price) 집계
+    ↓
+Agent 답변: 평균/최고/최저 가격과 수집 건수를 정리하고,
+           데이터 건수가 적을 때는 "참고용" 이라는 주의사항까지 스스로 덧붙여 생성
+```
 
 **단순 조회**
 
