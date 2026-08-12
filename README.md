@@ -310,6 +310,13 @@ https://hub.docker.com/r/winsonne/ybigta-newbie-team-project
 보안 그룹 설정(인바운드 규칙 추가 -> EC2의 보안 그룹은 가능하도록 설정)
 ![security](aws/RDS_security.png)
 
+
+
+### Architecture
+
+![architecture](aws/architecture.png)
+
+
 ## Data Pipeline
 
 ### 1. 수집 데이터
@@ -445,6 +452,184 @@ EC2의 cron을 통해 수집 프로그램이 자동 실행되고 BTC와 ETH 데�
 ![데이터 자동 갱신](aws/data_update.png)
 
 
+### MCP
+
+## 1. 존재하는 Tool 목록
+
+* `get_latest_data_tool`
+* `search_data_tool`
+* `aggregate_data_tool`
+
+---
+
+## 2. 각 Tool별 역할 및 기능
+
+### `get_latest_data_tool`
+
+* **기능**: 가장 최근 수집된 암호화폐 가격 데이터 목록 조회
+* **파라미터**: `limit` (조회 건수, 기본값: `10`)
+* **활용**: 시장 전체의 최신 시세 동향 파악
+
+### `search_data_tool`
+
+* **기능**: 특정 암호화폐 종목(`symbol`: BTC, ETH 등)의 과거 가격 수집 내역 검색
+* **파라미터**: `symbol` (코인 심볼), `limit` (조회 건수, 기본값: `20`)
+* **활용**: 특정 코인의 개별 시세 흐름 및 히스토리 추적
+
+### `aggregate_data_tool`
+
+* **기능**: 특정 암호화폐 종목의 요약 통계 지표(평균가, 최고가, 최저가, 총 수집 건수) 집계
+* **파라미터**: `symbol` (코인 심볼)
+* **활용**: 코인별 가격 변동 폭 분석 및 평균 시세 산출
+
+---
+
+## 3. Tool 구조 선택 이유
+
+1. **Agent의 명확한 Tool 선택 유도**
+* 최신 조회(`latest`), 특정 종목 검색(`search`), 통계 분석(`aggregate`)으로 기능을 명확히 분리하여 LLM이 사용자 의도에 알맞은 도구를 오작동 없이 스스로 선택하도록 설계
+
+
+2. **컨텍스트 및 토큰 비용 최적화**
+* DB 전체 데이터를 직접 전달하는 대신 필요한 범위로 필터링하거나 통계 요약값으로 반환하여 Token 소비량을 절감하고 응답 속도 향상
+
+
+3. **모듈화(Modularity)를 통한 유지보수성 확보**
+* `tools/` 디렉터리 하위에 기능별 파이썬 모듈(`latest.py`, `search.py`, `aggregation.py`)을 독립적으로 분리하여 가독성과 테스트 용이성 극대화
+
+
+---
+
+## 4. 새로운 데이터 및 Tool 추가 방법
+
+### 1단계: `tools/` 디렉터리에 비즈니스 로직 작성
+
+`mcp_server/tools/` 경로에 신규 파일(예: `top_gainers.py`)을 생성하고 DB 조회 로직을 작성
+
+```python
+import os
+import pymysql
+
+def get_top_gainers(limit: int = 5):
+    conn = pymysql.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        db=os.getenv("DB_NAME"),
+        cursorclass=pymysql.cursors.DictCursor
+    )
+    try:
+        with conn.cursor() as cursor:
+            query = """
+                SELECT symbol, close_price, open_price, 
+                       ((close_price - open_price) / open_price * 100) AS gain_percent
+                FROM crypto_prices
+                ORDER BY gain_percent DESC LIMIT %s
+            """
+            cursor.execute(query, (limit,))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+```
+
+### 2단계: `server.py`에 `@mcp.tool()` 등록
+
+작성한 함수를 import하고 `@mcp.tool()` 데코레이터를 부여해 FastMCP에 등록
+
+```python
+from tools.top_gainers import get_top_gainers
+
+@mcp.tool()
+def get_top_gainers_tool(limit: int = 5, ctx: Context = None) -> list:
+    """당일 가장 높은 상승률을 기록한 상위 코인 목록을 조회합니다."""
+    if ctx:
+        verify_auth(ctx)
+    return get_top_gainers(limit=limit)
+
+```
+
+
+### 3단계: Git 푸시 및 EC2 재배포
+
+```bash
+# 로컬 개발 환경
+git add .
+git commit -m "feat: add top gainers tool"
+git push origin main
+
+# EC2 서버 터미널
+cd ~/YBIGTA_newbie_team_project/mcp_server
+git pull origin main
+docker build -t mcp-server .
+docker rm -f mcp-app
+docker run -d -p 8000:8000 --name mcp-app mcp-server
+
+```
+
+### Security
+
+## 1. 왜 DB를 Private Subnet에 두었는가?
+
+* **외부 직접 접근 차단**: 인터넷에서 데이터베이스로 직접 들어오는 해킹 시도를 방지하기 위해 퍼블릭 IP가 할당되지 않는 Private Subnet에 배치
+
+* **심층 방어(Defense in Depth)**: 동일 VPC 내 Public Subnet에 위치한 EC2 인스턴스(데이터 수집기 및 MCP 서버)를 통해서만 접근을 허용함으로써, 데이터베이스의 보안 노출 면적(Attack Surface)을 최소화
+
+---
+
+## 2. RDS Security Group은 어떻게 설정했는가?
+
+* **인바운드 규칙(Inbound Rule) 최소화**: `0.0.0.0/0`과 같은 전체 개방을 하지 않고, MySQL 기본 포트인 **3306 포트**에 대해 EC2의 보안 그룹(Security Group ID)만 소스(Source)로 지정
+
+* **동작 원리**: IP가 가변적으로 바뀌더라도 EC2 인스턴스에 부여된 보안 그룹 식별자 기반으로만 접근을 허용하므로, 해당 EC2 인스턴스를 통하지 않은 외부/내부의 그 어떤 네트워크 요청도 RDS 입구에서 자동 차단
+
+---
+
+## 3. MCP의 내부 API Port를 어떻게 보호했는가?
+
+* **EC2 보안 그룹 개방 차단**: EC2 인스턴스의 보안 그룹 인바운드 규칙에서 MCP Docker 컨테이너 포트인 8000번 포트를 외부(`0.0.0.0/0`)에 공개하지 않음
+
+* **Nginx Reverse Proxy 경유**: 외부에 오직 80번 포트(HTTP)만 열어두고, Nginx가 `[http://127.0.0.1:8000](http://127.0.0.1:8000)`으로 요청을 내부적으로 우회시켜 전달하도록 설정
+
+* **결과**: 외부 사용자는 Docker 컨테이너 포트에 직접 접근할 수 없으며, 반드시 Nginx의 트래픽 제어 및 헤더 처리를 거쳐서만 MCP 서버와 통신 가능
+
+---
+
+## 4. MCP 인증은 어떻게 구현했는가?
+
+* **Bearer Token 기반 검증**: 환경변수로 설정된 `MCP_AUTH_TOKEN`을 활용하여, FastMCP 서버의 `verify_auth` 함수에서 HTTP 요청 헤더(`Authorization: Bearer <TOKEN>`)를 검증
+
+* **구현 방식**:
+```python
+def verify_auth(ctx: Context):
+    expected_token = os.getenv("MCP_AUTH_TOKEN")
+    # 클라이언트가 전달한 Authorization 헤더의 Bearer 토큰 추출 후 일치 여부 검증
+    if not auth_header.startswith("Bearer ") or auth_header.split("Bearer ")[1] != expected_token:
+        raise PermissionError("인증에 실패하였습니다.")
+
+```
+
+* **효과**: Nginx를 통과한 요청이더라도 올바른 Secret Token을 소지하지 않은 unauthorized 요청은 FastMCP 도구 실행 전 차단
+
+---
+
+## 5. 왜 Vercel Client(브라우저)에서 MCP를 직접 호출하지 않았는가?
+
+* **인증 토큰 유출 방지**: 클라이언트 브라우저(Client-side)에서 MCP를 직접 호출하면 JavaScript 코드나 네트워크 탭(DevTools)에 `MCP_AUTH_TOKEN`이 그대로 노출됨.
+
+* **CORS 및 보안 이슈 해결**: 브라우저에서 EC2로의 직접 교차 출처 요청(CORS) 문제를 방지하고, Vercel의 Server-side(Next.js Server API Route / Agent)에서 백엔드 간 통신(Server-to-Server)으로 MCP를 호출하여 토큰을 서버 환경변수 내에서만 안전하게 사용하도록 설계
+
+---
+
+## 6. API Key와 Token은 어디에서 관리하는가?
+
+* **소스코드 분리**: GitHub 저장소에 올라가는 모든 코드에는 API Key와 DB Password, MCP Auth Token을 하드코딩하지 않음
+* **환경변수(`ENV`) 및 서버 격리 관리**:
+* **EC2 / Docker**: 컨테이너 실행 시 `-e` 옵션 또는 `.env` 파일 형태로 관리하여 백그라운드 프로세스 메모리에만 탑재
+* **Vercel**: Vercel Dashboard의 **Project Settings ➔ Environment Variables**에 등록하여 Server-side 런타임 환경에서만 접근하도록 격리
+
+
+### Agent
 ## Data Analysis Agent (`web/`)
 
 사용자가 자연어로 데이터를 분석할 수 있는 Agent 사이트. Next.js(App Router)로 구현하고 Vercel에 배포합니다.
